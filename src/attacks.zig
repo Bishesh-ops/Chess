@@ -148,3 +148,25 @@ pub fn getKnightAttacks(sq: u6) Bitboard {
 pub fn getKingAttacks(sq: u6) Bitboard {
     return KING_ATTACKS[sq];
 }
+pub fn isSquareAttacked(pos: *const bitboard.Position, sq: u6, attacked_by_white: bool) bool {
+    const occupied = pos.getOccupied();
+
+    const bb_sq = @as(u64, 1) << sq;
+
+    if (attacked_by_white) {
+        const pawn_attacks = ((bb_sq & NOT_A_FILE) >> 9) | ((bb_sq & NOT_H_FILE) >> 7);
+        if ((pawn_attacks & pos.white_pawns) != 0) return true;
+        if ((getKnightAttacks(sq) & pos.white_knights) != 0) return true;
+        if ((getKingAttacks(sq) & pos.white_king) != 0) return true;
+        if ((getBishopAttacks(sq, occupied) & (pos.white_bishops | pos.white_queens)) != 0) return true;
+        if ((getRookAttacks(sq, occupied) & (pos.white_rooks | pos.white_queens)) != 0) return true;
+    } else {
+        const pawn_attacks = ((bb_sq & NOT_A_FILE) << 7) | ((bb_sq & NOT_H_FILE) << 9);
+        if ((pawn_attacks & pos.black_pawns) != 0) return true;
+        if ((getKnightAttacks(sq) & pos.black_knights) != 0) return true;
+        if ((getKingAttacks(sq) & pos.black_king) != 0) return true;
+        if ((getBishopAttacks(sq, occupied) & (pos.black_bishops | pos.black_queens)) != 0) return true;
+        if ((getRookAttacks(sq, occupied) & (pos.black_rooks | pos.black_queens)) != 0) return true;
+    }
+    return false;
+}

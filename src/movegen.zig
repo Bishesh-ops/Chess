@@ -315,3 +315,123 @@ fn extractBlackPromotions(board: bitboard.Bitboard, list: *MoveList, shift_amoun
         b &= b - 1;
     }
 }
+
+const CASTLE_RIGHTS = initCastleRights();
+fn initCastleRights() [64]u4 {
+    var rights = [_]u4{15} ** 64;
+
+    rights[4] = 15 ^ bitboard.CastlingRights.WK ^ bitboard.CastlingRights.WQ;
+    rights[0] = 15 ^ bitboard.CastlingRights.WQ;
+    rights[7] = 15 ^ bitboard.CastlingRights.WK;
+
+    rights[60] = 15 ^ bitboard.CastlingRights.BK ^ bitboard.CastlingRights.BQ;
+    rights[56] = 15 ^ bitboard.CastlingRights.BQ;
+    rights[63] = 15 ^ bitboard.CastlingRights.BK;
+
+    return rights;
+}
+
+fn clearSquare(pos: *bitboard.Position, sq: u6) void {
+    const mask = ~(@as(u64, 1) << sq);
+    pos.white_pawns &= mask;
+    pos.white_knights &= mask;
+    pos.white_bishops &= mask;
+    pos.white_rooks &= mask;
+    pos.white_queens &= mask;
+    pos.white_king &= mask;
+    pos.black_pawns &= mask;
+    pos.black_knights &= mask;
+    pos.black_bishops &= mask;
+    pos.black_rooks &= mask;
+    pos.black_queens &= mask;
+    pos.black_king &= mask;
+}
+
+pub fn makeMove(pos: *bitboard.Position, move: Move) bool {
+    const source_mask = @as(u64, 1) << move.source;
+    const target_mask = @as(u64, 1) << move.target;
+    const is_white = pos.side_to_move;
+    const flag = move.flags;
+
+    if (flag == @intFromEnum(MoveFlag.ep_capture)) {
+        const ep_sq = if (is_white) move.target - 8 else move.target + 8;
+        clearSquare(pos, ep_sq);
+    } else {
+        clearSquare(pos, move.target);
+    }
+
+    if ((pos.white_pawns & source_mask) != 0) {
+        pos.white_pawns ^= source_mask;
+        if (flag == @intFromEnum(MoveFlag.promotion_queen)) {
+            pos.white_queens |= target_mask;
+        } else if (flag == @intFromEnum(MoveFlag.promotion_rook)) {
+            pos.white_rooks |= target_mask;
+        } else if (flag == @intFromEnum(MoveFlag.promotion_bishop)) {
+            pos.white_bishops |= target_mask;
+        } else if (flag == @intFromEnum(MoveFlag.promotion_knight)) {
+            pos.white_knights |= target_mask;
+        } else {
+            pos.white_pawns |= target_mask;
+        }
+    } else if ((pos.black_pawns & source_mask) != 0) {
+        pos.black_pawns ^= source_mask;
+        if (flag == @intFromEnum(MoveFlag.promotion_queen)) {
+            pos.black_queens |= target_mask;
+        } else if (flag == @intFromEnum(MoveFlag.promotion_rook)) {
+            pos.black_rooks |= target_mask;
+        } else if (flag == @intFromEnum(MoveFlag.promotion_bishop)) {
+            pos.black_bishops |= target_mask;
+        } else if (flag == @intFromEnum(MoveFlag.promotion_knight)) {
+            pos.black_knights |= target_mask;
+        } else {
+            pos.black_pawns |= target_mask;
+        }
+    } else if ((pos.white_knights & source_mask) != 0) {
+        pos.white_knights ^= source_mask | target_mask;
+    } else if ((pos.black_knights & source_mask) != 0) {
+        pos.black_knights ^= source_mask | target_mask;
+    } else if ((pos.white_bishops & source_mask) != 0) {
+        pos.white_bishops ^= source_mask | target_mask;
+    } else if ((pos.black_bishops & source_mask) != 0) {
+        pos.black_bishops ^= source_mask | target_mask;
+    } else if ((pos.white_rooks & source_mask) != 0) {
+        pos.white_rooks ^= source_mask | target_mask;
+    } else if ((pos.black_rooks & source_mask) != 0) {
+        pos.black_rooks ^= source_mask | target_mask;
+    } else if ((pos.white_queens & source_mask) != 0) {
+        pos.white_queens ^= source_mask | target_mask;
+    } else if ((pos.black_queens & source_mask) != 0) {
+        pos.black_queens ^= source_mask | target_mask;
+    } else if ((pos.white_king & source_mask) != 0) {
+        pos.white_king ^= source_mask | target_mask;
+    } else if ((pos.black_king & source_mask) != 0) {
+        pos.black_king ^= source_mask | target_mask;
+    }
+
+    if (flag == @intFromEnum(MoveFlag.king_castle)) {
+        if (is_white) {
+            pos.white_rooks ^= (@as(u64, 1) << 7) | (@as(u64, 1) << 5);
+        } else {
+            pos.black_rooks ^= (@as(u64, 1) << 63) | (@as(u64, 1) << 61);
+        }
+    } else if (flag == @intFromEnum(MoveFlag.queen_castle)) {
+        if (is_white) {
+            pos.white_rooks ^= (@as(u64, 1) << 0) | (@as(u64, 1) << 3);
+        } else {
+            pos.black_rooks ^= (@as(u64, 1) << 56) | (@as(u64, 1) << 59);
+        }
+    }
+
+    pos.castling &= CASTLE_RIGHTS[move.source] & CASTLE_RIGHTS[move.target];
+
+    pos.en_passant_sq = null;
+    if (flag == @intFromEnum(MoveFlag.double_pawn_push)) {
+        pos.en_passant_sq = @as(bitboard.Square, @enumFromInt(if (is_white) move.target - 8 else move.target + 8));
+    }
+
+    pos.side_to_move = !pos.side_to_move;
+    const king_sq: u6 = @intCast(@ctz(if (is_white) pos.white_king else pos.black_king));
+    const in_check = attacks.isSquareAttacked(pos, king_sq, pos.side_to_move);
+
+    return !in_check;
+}
