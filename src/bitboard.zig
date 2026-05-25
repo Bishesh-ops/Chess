@@ -69,6 +69,13 @@ pub const Square = enum(u6) {
     h8,
 };
 
+pub const CastlingRights = struct {
+    pub const WK: u4 = 1; // 0001 (White Kingside)
+    pub const WQ: u4 = 2; // 0010 (White Queenside)
+    pub const BK: u4 = 4; // 0100 (Black Kingside)
+    pub const BQ: u4 = 8; // 1000 (Black Queenside)
+};
+
 pub const Position = struct {
     white_pawns: Bitboard = 0,
     white_knights: Bitboard = 0,
@@ -84,8 +91,9 @@ pub const Position = struct {
     black_queens: Bitboard = 0,
     black_king: Bitboard = 0,
 
-    side_to_move: bool = true,
+    side_to_move: bool = true, // white = true, black = false;
     en_passant_sq: ?Square = null,
+    castling: u4 = 0,
 
     pub fn initStart() Position {
         var pos = Position{};
@@ -107,6 +115,9 @@ pub const Position = struct {
 
         pos.white_king = 1 << @intFromEnum(Square.e1);
         pos.black_king = 1 << @intFromEnum(Square.e8);
+
+        // Give everyone full castling rights at the start of the game
+        pos.castling = CastlingRights.WK | CastlingRights.WQ | CastlingRights.BK | CastlingRights.BQ;
 
         pos.side_to_move = true;
 
