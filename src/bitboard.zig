@@ -189,7 +189,7 @@ pub const Position = struct {
 
     try w.print(" 0 1", .{});
 
-    return buffer[0..w.pos];
+    return w.buffered();
 }
     pub fn printBoard(self: *const Position) void {
         const print = @import("std").debug.print;
