@@ -136,7 +136,6 @@ fn negamax(
 
     if (depth == 0) return quiescence(pos, alpha_in, beta_in, state);
 
-    // TT probe
     var tt_move: ?movegen.Move = null;
     if (state.table.probe(pos.zobrist_hash)) |entry| {
         tt_move = entry.move;
@@ -183,25 +182,42 @@ fn negamax(
 
     for (list.moves[0..list.count]) |move| {
         var next_pos = pos.*;
+        
         if (!movegen.makeMove(&next_pos, move)) continue;
+        
         legal_moves += 1;
 
-        const score = -negamax(&next_pos, depth - 1, -beta_in, -alpha, ply + 1, state, true);
+        var score: i32 = undefined;
+        const is_capture = (move.flags == @intFromEnum(movegen.MoveFlag.capture)) or 
+                           (move.flags == @intFromEnum(movegen.MoveFlag.ep_capture));
+        const is_promo = move.flags >= @intFromEnum(movegen.MoveFlag.promotion_knight);
+
+        if (depth >= 3 and legal_moves >= 4 and !is_capture and !is_promo) {
+            score = -negamax(&next_pos, depth - 2, -alpha - 1, -alpha, ply + 1, state, true);
+
+            if (score > alpha and score < beta_in) {
+                score = -negamax(&next_pos, depth - 1, -beta_in, -alpha, ply + 1, state, true);
+            }
+        } else {
+            score = -negamax(&next_pos, depth - 1, -beta_in, -alpha, ply + 1, state, true);
+        }
 
         if (score > best_score) {
             best_score = score;
             best_move = move;
         }
+        
         if (score > alpha) {
             alpha = score;
-            bound = .exact;
+            bound = .exact; 
         }
+        
         if (alpha >= beta_in) {
-            const is_capture = move.flags == @intFromEnum(movegen.MoveFlag.capture) or
-                               move.flags == @intFromEnum(movegen.MoveFlag.ep_capture);
-            if (!is_capture and ply < MAX_DEPTH) storeKiller(state, move, ply);
-            bound = .lower;
-            break;
+            bound = .lower; 
+            if (!is_capture) {
+                storeKiller(state, move, ply);
+            }
+            break; 
         }
     }
 
@@ -211,16 +227,14 @@ fn negamax(
 
     state.table.store(pos.zobrist_hash, best_move, best_score, depth, bound);
     return best_score;
-}
-
-pub const SearchResult = struct {
+}pub const SearchResult = struct {
     best_move: movegen.Move,
     score: i32,
     depth: u8,
     nodes: u64,
 };
-
 pub fn findBestMove(pos: *bitboard.Position, max_depth: u8, state: *SearchState) SearchResult {
+
     state.nodes = 0;
 
     var best_move: movegen.Move = undefined;

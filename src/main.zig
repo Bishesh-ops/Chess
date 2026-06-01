@@ -1,25 +1,22 @@
 const std = @import("std");
-const bitboard = @import("bitboard.zig");
-const search = @import("search.zig");
+const datagen = @import("datagen.zig");
 
 pub fn main(init: std.process.Init) !void {
-    _ = init;
+    std.debug.print("========================================\n", .{});
+    std.debug.print(" BEYONDER NEURAL NET DATA GENERATOR\n", .{});
+    std.debug.print("========================================\n\n", .{});
 
-    var pos = try bitboard.Position.loadFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    pos.printBoard();
+    const num_games: usize = 1000;
 
-    var state = search.SearchState.init();
-    const result = search.findBestMove(&pos, 6, &state);
+    const io = init.io;
+    const start = std.Io.Clock.now(.awake, io);
 
-    const src_f = @as(u8, result.best_move.source % 8);
-    const src_r = @as(u8, result.best_move.source / 8);
-    const tgt_f = @as(u8, result.best_move.target % 8);
-    const tgt_r = @as(u8, result.best_move.target / 8);
+    try datagen.generateData(init.io, num_games);
 
-    std.debug.print("Best move: {c}{c}{c}{c}  score: {}  nodes: {}\n", .{
-        'a' + src_f, '1' + src_r,
-        'a' + tgt_f, '1' + tgt_r,
-        result.score,
-        result.nodes,
-    });
-}
+    const end = std.Io.Clock.now(.awake, io);
+    const elapsed = start.durationTo(end);
+    const elapsed_s = @as(f64, @floatFromInt(elapsed.toNanoseconds())) / 1_000_000_000.0;
+    
+    std.debug.print("[*] Finished in {d:.2} seconds.\n", .{elapsed_s});
+    std.debug.print("[*] Ready for Google Colab!\n", .{});
+}   

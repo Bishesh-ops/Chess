@@ -31,9 +31,13 @@ pub fn generateData(io: std.Io, num_games: usize) !void {
     var prng = std.Random.DefaultPrng.init(seed);
     const random = prng.random();
 
+    var state = search.SearchState.init();
+
     std.debug.print("Generating {} games of self-play data...\n", .{num_games});
 
     for (0..num_games) |game_idx| {
+        state.table.clear();
+
         var pos = bitboard.Position.initStart();
         var game_history: [500]DataPoint = undefined;
         var ply_count: usize = 0;
@@ -73,7 +77,8 @@ pub fn generateData(io: std.Io, num_games: usize) !void {
                 .is_white_turn = pos.side_to_move,
             };
 
-            const best_move = search.findBestMove(&pos, 3);
+            const search_result = search.findBestMove(&pos, 4, &state);
+            const best_move = search_result.best_move;
 
             var list = movegen.MoveList{};
             movegen.generateMoves(&pos, &list);
