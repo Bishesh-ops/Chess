@@ -2,7 +2,7 @@ const std = @import("std");
 const bitboard = @import("bitboard.zig");
 const movegen = @import("movegen.zig");
 const attacks = @import("attacks.zig");
-const evaluate = @import("evaluate.zig");
+const nn = @import("nn.zig");
 const tt = @import("tt.zig");
 const zobrist = @import("zobrist.zig");
 
@@ -18,8 +18,8 @@ const MVV_LVA: [6][6]i32 = .{
     .{ 405, 404, 403, 402, 401, 400 }, // victim Rook
     .{ 505, 504, 503, 502, 501, 500 }, // victim Queen
     .{   0,   0,   0,   0,   0,   0 }, // victim King (shouldn't happen)
-};
 
+};
 pub const SearchState = struct {
     table: tt.TranspositionTable = .{},
     killers: [MAX_DEPTH][MAX_KILLERS]movegen.Move = [_][MAX_KILLERS]movegen.Move{
@@ -100,7 +100,7 @@ fn storeKiller(state: *SearchState, move: movegen.Move, ply: usize) void {
 
 fn quiescence(pos: *bitboard.Position, alpha_in: i32, beta: i32, state: *SearchState) i32 {
     state.nodes += 1;
-    const stand_pat = evaluate.evaluate(pos);
+    const stand_pat = nn.evaluate(pos);
     if (stand_pat >= beta) return beta;
     var alpha = if (alpha_in < stand_pat) stand_pat else alpha_in;
 
